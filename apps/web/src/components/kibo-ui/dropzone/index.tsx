@@ -184,8 +184,7 @@ export const DropzoneEmptyState = ({
   let caption = "";
 
   if (accept) {
-    caption += "Accepts ";
-    caption += new Intl.ListFormat("en").format(Object.keys(accept));
+    caption += "Accepts PDF or DOCX";
   }
 
   if (minSize && maxSize) {
