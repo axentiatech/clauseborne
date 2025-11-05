@@ -21,12 +21,15 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.41",
+    "@ai-sdk/openai": "^2.0.62",
     "@iam-pro-say/auth": "workspace:*",
     "@iam-pro-say/db": "workspace:*",
     "@mistralai/mistralai": "^1.10.0",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "@vercel/blob": "^2.0.0",
+    "ai": "^5.0.87",
     "dotenv": "catalog:",
     "next": "catalog:",
     "zod": "catalog:"
