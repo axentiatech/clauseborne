@@ -5,18 +5,19 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "env": [
+        "DATABASE_URL",
+        "BETTER_AUTH_URL",
+        "BETTER_AUTH_SECRET",
+        "CORS_ORIGIN",
+        "MISTRAL_API_KEY",
+        "BLOB_READ_WRITE_TOKEN",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY"
+      ]
     },
-    "env": [
-      "DATABASE_URL",
-      "BETTER_AUTH_URL",
-      "BETTER_AUTH_SECRET",
-      "CORS_ORIGIN",
-      "MISTRAL_API_KEY",
-      "BLOB_READ_WRITE_TOKEN",
-      "ANTHROPIC_API_KEY",
-      "OPENAI_API_KEY"
-    ],
+
     "lint": {
       "dependsOn": ["^lint"]
     },
