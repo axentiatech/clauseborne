@@ -41,8 +41,6 @@ export const projectRouter = createTRPCRouter({
         prompt: getFdcpaPrompt({ context: input.context }),
       });
 
-      console.log(usage);
-
       return object;
     }),
 
