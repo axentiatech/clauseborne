@@ -32,7 +32,7 @@ export const projectRouter = createTRPCRouter({
   analyse: protectedProcedure
     .input(analyzeInputSchema)
     .mutation(async ({ input }) => {
-      const { object, usage } = await generateObject({
+      const { object } = await generateObject({
         // model: openai("gpt-4.1"),
         model: anthropic("claude-haiku-4-5"),
         output: "array",
