@@ -10,7 +10,7 @@ import {
 import { generateObject, generateText } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 // import { openai } from "@ai-sdk/openai";
-import { coverLetterPrompt, getFdcpaPrompt } from "../lib/prompt";
+import { coverLetterPrompt, getFdcpaPrompt } from "../lib/prompts";
 
 export const projectRouter = createTRPCRouter({
   list: protectedProcedure.query(() => {

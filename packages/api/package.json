@@ -26,11 +26,13 @@
     "@iam-pro-say/auth": "workspace:*",
     "@iam-pro-say/db": "workspace:*",
     "@mistralai/mistralai": "^1.10.0",
+    "@toon-format/toon": "^1.3.0",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "@vercel/blob": "^2.0.0",
     "ai": "^5.0.87",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.44.7",
     "next": "catalog:",
     "zod": "catalog:"
   }
