@@ -54,7 +54,7 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(
     INITIAL_QUESTIONNAIRE
   );
-  const [draft, setDraft] = useState<string>("")
+  const [draft, setDraft] = useState<string>("");
   const searchParams = useSearchParams();
   const id = initialId ?? searchParams.get("id");
 
@@ -252,7 +252,7 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
               for you to review.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 p-4">
+          <CardContent className="space-y-4 p-2">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

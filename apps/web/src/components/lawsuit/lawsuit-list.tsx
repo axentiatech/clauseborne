@@ -1,9 +1,7 @@
-import { db } from "@iam-pro-say/db";
-import { answerLawsuit } from "@iam-pro-say/db/schema/answer-lawsuit";
-import { auth } from "@iam-pro-say/auth";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { trpc } from "@/utils/trpc";
 import Link from "next/link";
 import {
   Card,
@@ -22,20 +20,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewLawsuitButton } from "@/components/lawsuit/new-lawsuit-button";
+import { Spinner } from "@/components/ui/spinner";
 
-const LawsuitList = async () => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session?.user) {
-    redirect("/login");
-  }
-
-  const lawsuits = await db
-    .select()
-    .from(answerLawsuit)
-    .where(eq(answerLawsuit.userId, session.user.id));
+const LawsuitList = () => {
+  const { data: lawsuits = [], isLoading } = useQuery(
+    trpc.answerLawsuit.list.queryOptions()
+  );
 
   const getStatus = (lawsuit: (typeof lawsuits)[0]) => {
     if (lawsuit.draft_content) {
@@ -61,6 +51,14 @@ const LawsuitList = async () => {
       bgColor: "bg-muted",
     };
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

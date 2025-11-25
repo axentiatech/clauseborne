@@ -9,7 +9,7 @@ import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { db } from "@iam-pro-say/db";
 import { answerLawsuit } from "@iam-pro-say/db/schema/answer-lawsuit";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { generateDraftSchema } from "../schema/answer-lawsuit";
 
 export const answerLawsuitRouter = createTRPCRouter({
@@ -142,4 +142,14 @@ export const answerLawsuitRouter = createTRPCRouter({
 
       return row ?? null;
     }),
+
+  list: protectedProcedure.query(async ({ ctx }) => {
+    const lawsuits = await db
+      .select()
+      .from(answerLawsuit)
+      .where(eq(answerLawsuit.userId, ctx.session.user.id))
+      .orderBy(desc(answerLawsuit.created_at));
+
+    return lawsuits;
+  }),
 });

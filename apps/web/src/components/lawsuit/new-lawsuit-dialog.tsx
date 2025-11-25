@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { serializeFile } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
@@ -33,14 +33,20 @@ export function NewLawsuitDialog({
 }: NewLawsuitDialogProps) {
   const [files, setFiles] = useState<File[] | undefined>();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const { mutateAsync: uploadDocument, isPending: isUploading } = useMutation(
     trpc.answerLawsuit.create.mutationOptions({
       onSuccess: ({ id }) => {
+        
         toast.success("Document uploaded successfully");
         onOpenChange(false);
         setFiles(undefined);
         router.push(`/dashboard/answer-lawsuit/${id}`);
+        const listQueryKey = trpc.answerLawsuit.list.queryOptions().queryKey;
+        queryClient.invalidateQueries({
+          queryKey: listQueryKey,
+        });
       },
       onError: (error) => {
         toast.error(error.message || "Failed to upload document");

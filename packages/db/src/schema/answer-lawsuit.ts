@@ -1,4 +1,4 @@
-import { jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 
 export const answerLawsuit = pgTable("answer_lawsuit", {
@@ -12,4 +12,7 @@ export const answerLawsuit = pgTable("answer_lawsuit", {
   allegations: jsonb("allegations"),
   questionnaire: jsonb("questionnaire"),
   draft_content: text("draft_content"),
+
+  created_at: timestamp("created_at").notNull().defaultNow(),
+  updated_at: timestamp("updated_at").notNull().defaultNow(),
 });
