@@ -1,11 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Dropzone,
-  DropzoneContent,
-  DropzoneEmptyState,
-} from "@/components/kibo-ui/dropzone";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,11 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { serializeFile } from "@/lib/utils";
+// serializeFile not needed here; upload happens before this page.
 import { trpc } from "@/utils/trpc";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  UploadIcon,
   FileText,
   ListChecks,
   ClipboardList,
@@ -36,9 +30,10 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  Edit2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Spinner } from "./ui/spinner";
+import { Spinner } from "@/components/ui/spinner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Streamdown } from "streamdown";
 import type {
@@ -48,36 +43,43 @@ import type {
   OweDebt,
   ProperlyServed,
 } from "@/lib/types";
-import { INITIAL_QUESTIONNAIRE, US_STATES } from "@/lib/types";
+import { fdcpaList } from "@/lib/constants";
+import { US_STATES, INITIAL_QUESTIONNAIRE } from "@/lib/types";
 
-const AnswerLawsuit = () => {
-  const [step, setStep] = useState<Step>(1);
-  const [files, setFiles] = useState<File[] | undefined>();
+const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
+  const [step, setStep] = useState<Step>(2);
   const [context, setContext] = useState("");
   const [pdfUrl, setPdfUrl] = useState<string>("");
   const [allegations, setAllegations] = useState<Allegation[]>([]);
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(
     INITIAL_QUESTIONNAIRE
   );
-  const [draft, setDraft] = useState<string>("");
-  const router = useRouter();
+  const [draft, setDraft] = useState<string>("")
   const searchParams = useSearchParams();
-  const id = searchParams.get("id");
+  const id = initialId ?? searchParams.get("id");
 
-  const { mutateAsync: uploadDocument, isPending: isUploading } = useMutation(
-    trpc.answerLawsuit.create.mutationOptions({
-      onSuccess: ({ context, id, url }) => {
-        setContext(context);
-        setPdfUrl(url);
-        setStep(2);
-        router.replace(`/dashboard/answer-lawsuit?id=${id}`);
-        toast.success("Document uploaded successfully");
-      },
-      onError: (error) => {
-        toast.error(error.message);
-      },
-    })
+  const { data: lawsuitData, isLoading: isLoadingLawsuit } = useQuery(
+    trpc.answerLawsuit.get.queryOptions(
+      { id: id as string },
+      {
+        enabled: !!id,
+      }
+    )
   );
+
+  useEffect(() => {
+    if (lawsuitData) {
+      if (lawsuitData.document_url) {
+        setPdfUrl(lawsuitData.document_url);
+      }
+      if (lawsuitData.document_content) {
+        setContext(lawsuitData.document_content);
+      }
+      if (lawsuitData.allegations && Array.isArray(lawsuitData.allegations)) {
+        setAllegations(lawsuitData.allegations as Allegation[]);
+      }
+    }
+  }, [lawsuitData]);
 
   const { mutateAsync: runExtractAllegations, isPending: isExtracting } =
     useMutation(
@@ -96,7 +98,7 @@ const AnswerLawsuit = () => {
     useMutation(
       trpc.answerLawsuit.generateDraft.mutationOptions({
         onSuccess: (data) => {
-          setDraft(data as string);
+          setDraft(data);
           toast.success("Answer draft generated");
         },
         onError: (error) => {
@@ -105,22 +107,24 @@ const AnswerLawsuit = () => {
       })
     );
 
-  const handleUpload = async () => {
-    if (!files?.length) {
-      toast.warning("Please select a file");
-      return;
-    }
+  const { mutateAsync: updateAllegationMut, isPending: isUpdatingAllegation } =
+    useMutation(
+      trpc.answerLawsuit.updateAllegation.mutationOptions({
+        onSuccess: () => {
+          toast.success("Allegations updated");
+        },
+        onError: (err) => {
+          toast.error(err.message);
+        },
+      })
+    );
 
-    const serializedFile = await serializeFile(files[0]);
-    setAllegations([]);
-    setContext("");
-    setPdfUrl("");
-    await uploadDocument(serializedFile);
-  };
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState<string>("");
 
   const handleExtractAllegations = async () => {
-    if (!context) {
-      toast.warning("Upload a document first");
+    if (!id) {
+      toast.warning("Missing document id");
       return;
     }
 
@@ -168,7 +172,7 @@ const AnswerLawsuit = () => {
   };
 
   const handleBack = () => {
-    setStep((prev) => (prev > 1 ? ((prev - 1) as Step) : prev));
+    setStep((prev) => (prev > 2 ? ((prev - 1) as Step) : prev));
   };
 
   const updateQuestionnaireField = <K extends keyof Questionnaire>(
@@ -194,34 +198,9 @@ const AnswerLawsuit = () => {
     }));
   };
 
-  const fdcpaList: {
-    key: keyof Questionnaire["fdcpaViolations"];
-    label: string;
-  }[] = [
-    { key: "illegalThreats", label: "Threats of illegal action" },
-    { key: "falseStatements", label: "False statements about debt amount" },
-    { key: "harassment", label: "Harassment or abuse" },
-    { key: "earlyCalls", label: "Calls before 8am or after 9pm" },
-    { key: "employerContact", label: "Contacting your employer" },
-    {
-      key: "ceaseDesistIgnored",
-      label: "Continued contact after cease & desist",
-    },
-    {
-      key: "thirdPartyDisclosure",
-      label: "Disclosed debt to third parties",
-    },
-    {
-      key: "miniMirandaMissing",
-      label: "Missing Mini-Miranda warning in calls/letters",
-    },
-  ];
-
-  const canGoNextFromUpload = !!context && !isUploading;
-
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/40 px-4 py-3">
+    <div className="w-full space-y-4 px-6">
+      <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/40 px-4 py-3 ">
         {[
           { id: 1, label: "Upload", icon: FileText },
           { id: 2, label: "Allegations", icon: ListChecks },
@@ -264,87 +243,6 @@ const AnswerLawsuit = () => {
         })}
       </div>
 
-      {step === 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload your court papers</CardTitle>
-            <CardDescription>
-              Upload the summons or complaint you received from the court. PDF
-              works best.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Dropzone
-              accept={{
-                "application/pdf": [],
-              }}
-              maxFiles={1}
-              maxSize={1024 * 1024 * 10}
-              minSize={1024}
-              onDrop={(files) => setFiles(files)}
-              onError={console.error}
-              src={files}
-              disabled={isUploading}
-              className="border border-dashed max-w-xl justify-center mx-auto"
-            >
-              <DropzoneEmptyState />
-              <DropzoneContent />
-            </Dropzone>
-
-            {files?.length ? (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-muted-foreground truncate max-w-xs">
-                  Selected file: {files[0].name}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setFiles(undefined);
-                      setContext("");
-                      setPdfUrl("");
-                      setAllegations([]);
-                    }}
-                  >
-                    Clear
-                  </Button>
-                  <Button
-                    onClick={handleUpload}
-                    disabled={isUploading}
-                    size="sm"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Spinner />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <UploadIcon className="mr-2 h-4 w-4" />
-                        Upload &amp; read PDF
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="flex justify-end pt-2 border-t mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!canGoNextFromUpload}
-                onClick={() => setStep(2)}
-              >
-                Continue
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {step === 2 && (
         <Card>
           <CardHeader>
@@ -354,7 +252,7 @@ const AnswerLawsuit = () => {
               for you to review.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -372,7 +270,7 @@ const AnswerLawsuit = () => {
                     </a>
                   )}
                 </div>
-                <div className="border rounded-md bg-card h-[500px] overflow-hidden">
+                <div className="border rounded-md bg-card h-[55vh] overflow-hidden p-2">
                   {pdfUrl ? (
                     <iframe
                       src={pdfUrl}
@@ -390,7 +288,7 @@ const AnswerLawsuit = () => {
                 <Label className="text-xs uppercase text-muted-foreground">
                   Allegations
                 </Label>
-                <div className="border rounded-md bg-muted/40 h-64 overflow-auto p-3 space-y-2">
+                <div className="border rounded-md bg-muted/40 h-[55vh] overflow-auto p-4 space-y-3">
                   {allegations.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       No allegations extracted yet. Click &quot;Extract
@@ -403,8 +301,77 @@ const AnswerLawsuit = () => {
                         key={item.id}
                         className="rounded-md border bg-background px-3 py-2 text-sm space-y-1"
                       >
-                        <p className="font-medium">Allegation {item.id}</p>
-                        <p className="text-muted-foreground">{item.text}</p>
+                        <div className="flex items-start justify-between">
+                          <p className="font-medium">Allegation {item.id}</p>
+                          <div className="flex items-center gap-2">
+                            {editingId === item.id ? null : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingId(item.id);
+                                  setEditingText(item.text);
+                                }}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {editingId === item.id ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              className="w-full rounded-md border px-2 py-1 text-sm"
+                              rows={4}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  if (!id) {
+                                    toast.error("Missing document id");
+                                    return;
+                                  }
+                                  try {
+                                    const updatedAllegations: Allegation[] =
+                                      allegations.map((alg) =>
+                                        alg.id === item.id
+                                          ? { ...alg, text: editingText }
+                                          : alg
+                                      );
+                                    await updateAllegationMut({
+                                      id: id as string,
+                                      allegations: updatedAllegations,
+                                    });
+                                    setAllegations(updatedAllegations);
+                                    setEditingId(null);
+                                  } catch (e) {
+                                    // error handled by mutation onError
+                                  }
+                                }}
+                                disabled={isUpdatingAllegation}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingId(null);
+                                  setEditingText("");
+                                }}
+                                disabled={isUpdatingAllegation}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-muted-foreground">{item.text}</p>
+                        )}
                       </div>
                     ))
                   )}
@@ -413,7 +380,7 @@ const AnswerLawsuit = () => {
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t">
-              <Button variant="outline" size="sm" onClick={handleBack}>
+              <Button variant="outline" size="sm" onClick={handleBack} disabled>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
@@ -422,7 +389,7 @@ const AnswerLawsuit = () => {
                   variant="outline"
                   size="sm"
                   onClick={handleExtractAllegations}
-                  disabled={isExtracting || !context}
+                  disabled={isExtracting || isLoadingLawsuit || !id}
                 >
                   {isExtracting ? (
                     <>
@@ -445,7 +412,7 @@ const AnswerLawsuit = () => {
 
       {step === 3 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="p-4">
             <CardTitle>Tell us about your case</CardTitle>
             <CardDescription>
               We&apos;ll use this information to customize your Answer and
