@@ -21,11 +21,25 @@ import {
 import { cn } from "@/lib/utils";
 import { NewLawsuitButton } from "@/components/lawsuit/new-lawsuit-button";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "../ui/input";
+import { useState } from "react";
 
 const LawsuitList = () => {
+  const [search, setSearch] = useState<string>("");
   const { data: lawsuits = [], isLoading } = useQuery(
     trpc.answerLawsuit.list.queryOptions()
   );
+
+  const filteredLawsuits = lawsuits.filter((lawsuit) => {
+    if (!search.trim()) return true;
+
+    const searchLower = search.toLowerCase();
+    const documentName = (
+      lawsuit.document_name || "Untitled Document"
+    ).toLowerCase();
+
+    return documentName.includes(searchLower);
+  });
 
   const getStatus = (lawsuit: (typeof lawsuits)[0]) => {
     if (lawsuit.draft_content) {
@@ -66,37 +80,57 @@ const LawsuitList = () => {
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Your Lawsuits</h2>
           <p className="text-sm text-muted-foreground">
-            {lawsuits.length === 0
-              ? "No lawsuits yet. Create your first one to get started."
-              : `You have ${lawsuits.length} ${
-                  lawsuits.length === 1 ? "lawsuit" : "lawsuits"
+            {filteredLawsuits.length === 0
+              ? lawsuits.length === 0
+                ? "No lawsuits yet. Create your first one to get started."
+                : "No available lawsuits matching your search."
+              : `You have ${filteredLawsuits.length} ${
+                  filteredLawsuits.length === 1 ? "lawsuit" : "lawsuits"
+                }${
+                  search.trim() ? " matching your search" : ""
                 } in your account.`}
           </p>
         </div>
-        <NewLawsuitButton className="w-full sm:w-auto" />
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            type="text"
+            placeholder="Search lawsuits"
+            className="flex-1 sm:flex-initial sm:w-64"
+          />
+          <NewLawsuitButton className="shrink-0" />
+        </div>
       </div>
 
-      {lawsuits.length === 0 ? (
+      {filteredLawsuits.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 px-6">
             <div className="p-4 rounded-full bg-muted mb-4">
               <FileText className="size-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No lawsuits yet</h3>
+            <h3 className="text-xl font-semibold mb-2">
+              {lawsuits.length === 0
+                ? "No lawsuits yet"
+                : "No available lawsuits"}
+            </h3>
             <p className="text-sm text-muted-foreground text-center mb-6 max-w-md">
-              Get started by creating your first lawsuit answer. Upload your
-              court documents and we&apos;ll help you prepare a professional
-              response.
+              {lawsuits.length === 0
+                ? "Get started by creating your first lawsuit answer. Upload your court documents and we'll help you prepare a professional response."
+                : "Try adjusting your search terms to find what you're looking for."}
             </p>
-            <NewLawsuitButton>
-              <Plus className="size-4" />
-              Create Your First Lawsuit
-            </NewLawsuitButton>
+            {lawsuits.length === 0 && (
+              <NewLawsuitButton>
+                <Plus className="size-4" />
+                Create Your First Lawsuit
+              </NewLawsuitButton>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {lawsuits.map((lawsuit) => {
+          {filteredLawsuits.map((lawsuit) => {
             const status = getStatus(lawsuit);
             const StatusIcon = status.icon;
 
