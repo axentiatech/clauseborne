@@ -1,0 +1,1 @@
+ALTER TABLE "answer_lawsuit" ADD COLUMN "document_name" text DEFAULT 'Untitled';

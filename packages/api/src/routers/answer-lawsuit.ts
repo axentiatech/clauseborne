@@ -23,8 +23,10 @@ export const answerLawsuitRouter = createTRPCRouter({
       const context = ocrResult.pages.map((page) => page.markdown).join("\n");
 
       const id = crypto.randomUUID();
+
       await db.insert(answerLawsuit).values({
         id,
+        document_name: input.name,
         userId: ctx.session.user.id,
         document_url: url,
         document_content: context,
@@ -69,6 +71,31 @@ export const answerLawsuitRouter = createTRPCRouter({
       return result.object.allegations;
     }),
 
+  updateAllegation: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        allegations: z.array(
+          z.object({
+            id: z.number(),
+            text: z.string(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { id, allegations } = input;
+
+      await db
+        .update(answerLawsuit)
+        .set({
+          allegations: allegations,
+        })
+        .where(eq(answerLawsuit.id, id));
+
+      return allegations;
+    }),
+
   generateDraft: protectedProcedure
     .input(generateDraftSchema)
     .mutation(async ({ input }) => {
@@ -97,5 +124,22 @@ export const answerLawsuitRouter = createTRPCRouter({
         .where(eq(answerLawsuit.id, id));
 
       return result.text;
+    }),
+
+  get: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input }) => {
+      const { id } = input;
+
+      const [row] = await db
+        .select({
+          document_url: answerLawsuit.document_url,
+          document_content: answerLawsuit.document_content,
+          allegations: answerLawsuit.allegations,
+        })
+        .from(answerLawsuit)
+        .where(eq(answerLawsuit.id, id));
+
+      return row ?? null;
     }),
 });

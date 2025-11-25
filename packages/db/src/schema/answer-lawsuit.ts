@@ -3,6 +3,7 @@ import { user } from "./auth";
 
 export const answerLawsuit = pgTable("answer_lawsuit", {
   id: text("id").primaryKey(),
+  document_name: text("document_name").default("Untitled"),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),

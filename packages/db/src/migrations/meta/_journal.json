@@ -15,6 +15,13 @@
       "when": 1763898803304,
       "tag": "0001_icy_azazel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764041333561,
+      "tag": "0002_unique_pestilence",
+      "breakpoints": true
     }
   ]
 }

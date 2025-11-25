@@ -7,7 +7,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { auth } from "@iam-pro-say/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { cache } from "react";
+import { cache, Suspense } from "react";
+import Loader from "@/components/loader";
 
 export const metadata: Metadata = {
   title: "iam-pro-say",
@@ -17,7 +18,6 @@ export const metadata: Metadata = {
 const getSession = cache(async () => {
   return auth.api.getSession({ headers: await headers() });
 });
-
 async function AuthGuard({ children }: { children: React.ReactNode }) {
   const session = await getSession();
 
@@ -27,6 +27,7 @@ async function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
 export default function RootLayout({
   children,
 }: Readonly<{
