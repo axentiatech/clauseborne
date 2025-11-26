@@ -29,6 +29,13 @@
       "when": 1764059362418,
       "tag": "0003_last_patch",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1764128147880,
+      "tag": "0004_neat_kate_bishop",
+      "breakpoints": true
     }
   ]
 }

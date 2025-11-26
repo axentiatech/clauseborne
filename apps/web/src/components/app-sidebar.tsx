@@ -71,6 +71,11 @@ const data = {
       url: "/repossession",
       icon: IconCar,
     },
+    {
+      title: "FDCPA Violation Detection",
+      url: "/fdcpa-violation",
+      icon: IconFileText,
+    },
   ],
   navSecondary: [
     {
