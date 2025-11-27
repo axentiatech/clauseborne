@@ -33,6 +33,7 @@ import { useMutation } from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
 import { useParams, useRouter } from "next/navigation";
 import { Streamdown } from "streamdown";
+import { toast } from "sonner";
 
 interface FdcpaReviewProps {
   violations: Violation[];
@@ -44,6 +45,7 @@ export function FdcpaReview({ violations, letter, context }: FdcpaReviewProps) {
   const { mutateAsync, isPending } = useMutation(
     trpc.fdcpa.generateLetter.mutationOptions({
       onSuccess: () => {
+        toast.success("Cover letter generated successfully");
         router.refresh();
       },
     })
