@@ -2,18 +2,13 @@ import { createTRPCRouter, protectedProcedure } from "..";
 import { upload } from "../lib/file";
 import { ocr } from "../lib/ocr";
 import { createSchema } from "../schema/project";
-import {
-  extractViolationsPrompt,
-  generateDraftPrompt,
-  generateLetterPrompt,
-} from "../lib/prompts";
+import { extractViolationsPrompt, generateLetterPrompt } from "../lib/prompts";
 import { generateObject, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { db } from "@iam-pro-say/db";
 import { fdcpaViolations } from "@iam-pro-say/db/schema/fdcpa";
 import { eq, desc } from "drizzle-orm";
-import { generateDraftSchema } from "../schema/answer-lawsuit";
 import { extractViolationsSchema, generateLetterSchema } from "../schema/fdcpa";
 
 export const fdcpaRouter = createTRPCRouter({
@@ -53,6 +48,7 @@ export const fdcpaRouter = createTRPCRouter({
       const result = await generateObject({
         model: openai("gpt-4.1"),
         prompt: prompt,
+        temperature: 0,
         schema: z.object({
           violations: z.array(
             z.object({
@@ -88,36 +84,6 @@ export const fdcpaRouter = createTRPCRouter({
 
       const prompt = generateLetterPrompt({ violations, context });
 
-      const result = await generateText({
-        model: openai("gpt-4.1"),
-        prompt: prompt,
-      });
-
-      await db
-        .update(fdcpaViolations)
-        .set({
-          letter: result.text,
-        })
-        .where(eq(fdcpaViolations.id, id));
-
-      return result.text;
-    }),
-
-  generateDraft: protectedProcedure
-    .input(generateDraftSchema)
-    .mutation(async ({ input }) => {
-      const { id, allegations, questionnaire } = input;
-
-      const [pdf_content] = await db
-        .select({ document_content: fdcpaViolations.document_content })
-        .from(fdcpaViolations)
-        .where(eq(fdcpaViolations.id, id));
-
-      const prompt = generateDraftPrompt({
-        allegations,
-        questionnaire,
-        pdf_content: pdf_content?.document_content ?? "",
-      });
       const result = await generateText({
         model: openai("gpt-4.1"),
         prompt: prompt,
