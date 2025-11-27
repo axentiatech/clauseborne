@@ -21,3 +21,8 @@ export const extractViolationsSchema = z.object({
   id: z.string().describe("The id of the document"),
   context: z.string().describe("The context of the document"),
 });
+
+export const saveLetterSchema = z.object({
+  id: z.string().describe("The id of the document"),
+  letter: z.string().describe("The updated letter content"),
+});

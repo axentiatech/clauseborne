@@ -34,6 +34,16 @@ import { trpc } from "@/utils/trpc";
 import { useParams, useRouter } from "next/navigation";
 import { Streamdown } from "streamdown";
 import { toast } from "sonner";
+import { SummaryEditor, type SummaryEditorRef } from "../lawsuit/editor";
+import { useState, useRef } from "react";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  PDFExporter,
+  pdfDefaultSchemaMappings,
+} from "@blocknote/xl-pdf-exporter";
+import * as ReactPDF from "@react-pdf/renderer";
+import { useCreateBlockNote } from "@blocknote/react";
+import { Download } from "lucide-react";
 
 interface FdcpaReviewProps {
   violations: Violation[];
@@ -126,6 +136,59 @@ function EmptyState() {
 }
 
 function ViewLetter({ letter }: { letter: string }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const editorRef = useRef<SummaryEditorRef>(null);
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const pdfEditor = useCreateBlockNote();
+
+  const { mutateAsync: saveLetter, isPending: isSaving } = useMutation(
+    trpc.fdcpa.saveLetter.mutationOptions({
+      onSuccess: () => {
+        toast.success("Letter saved successfully");
+        setIsEditing(false);
+        router.refresh();
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    })
+  );
+
+  const handleDownloadPDF = async () => {
+    if (!pdfEditor) return;
+
+    try {
+      const blocks = await pdfEditor.tryParseMarkdownToBlocks(letter);
+      if (!blocks || blocks.length === 0) {
+        toast.error("Unable to parse letter content");
+        return;
+      }
+
+      pdfEditor.replaceBlocks(pdfEditor.document, blocks);
+
+      const exporter = new PDFExporter(
+        pdfEditor.schema,
+        pdfDefaultSchemaMappings
+      );
+      const pdfDocument = await exporter.toReactPDFDocument(pdfEditor.document);
+
+      const blob = await ReactPDF.pdf(pdfDocument).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `fdcpa-violation-letter-${params.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("PDF downloaded successfully");
+    } catch (error) {
+      toast.error("Failed to generate PDF");
+      console.error("PDF generation error:", error);
+    }
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -139,9 +202,61 @@ function ViewLetter({ letter }: { letter: string }) {
             review it carefully
           </DialogDescription>
         </DialogHeader>
+        <DialogFooter className="gap-2 sm:justify-start">
+          {isEditing ? (
+            <>
+              <Button
+                onClick={async () => {
+                  if (editorRef.current) {
+                    await editorRef.current.save();
+                  }
+                }}
+                disabled={isSaving || editorRef.current?.isSaving}
+              >
+                {isSaving || editorRef.current?.isSaving ? (
+                  <>
+                    <Spinner />
+                    Saving...
+                  </>
+                ) : (
+                  "Save"
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditing(false)}
+                disabled={isSaving || editorRef.current?.isSaving}
+              >
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => setIsEditing(true)}>Edit Letter</Button>
+              <Button variant="outline" onClick={handleDownloadPDF}>
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+            </>
+          )}
+        </DialogFooter>
         <Separator />
         <div className="space-y-2">
-          <Streamdown>{letter}</Streamdown>
+          {isEditing ? (
+            <SummaryEditor
+              ref={editorRef}
+              initialMarkdown={letter}
+              onCancel={() => setIsEditing(false)}
+              onSave={async (markdown) => {
+                await saveLetter({
+                  id: params.id,
+                  letter: markdown,
+                });
+              }}
+            />
+          ) : (
+            <Streamdown>{letter}</Streamdown>
+          )}
         </div>
       </DialogContent>
     </Dialog>

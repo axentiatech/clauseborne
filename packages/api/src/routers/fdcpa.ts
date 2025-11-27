@@ -9,7 +9,11 @@ import { z } from "zod";
 import { db } from "@iam-pro-say/db";
 import { fdcpaViolations } from "@iam-pro-say/db/schema/fdcpa";
 import { eq, desc } from "drizzle-orm";
-import { extractViolationsSchema, generateLetterSchema } from "../schema/fdcpa";
+import {
+  extractViolationsSchema,
+  generateLetterSchema,
+  saveLetterSchema,
+} from "../schema/fdcpa";
 
 export const fdcpaRouter = createTRPCRouter({
   create: protectedProcedure
@@ -97,6 +101,21 @@ export const fdcpaRouter = createTRPCRouter({
         .where(eq(fdcpaViolations.id, id));
 
       return result.text;
+    }),
+
+  saveLetter: protectedProcedure
+    .input(saveLetterSchema)
+    .mutation(async ({ input }) => {
+      const { id, letter } = input;
+
+      await db
+        .update(fdcpaViolations)
+        .set({
+          letter,
+        })
+        .where(eq(fdcpaViolations.id, id));
+
+      return { success: true };
     }),
 
   get: protectedProcedure
