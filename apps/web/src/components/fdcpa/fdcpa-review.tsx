@@ -54,7 +54,7 @@ export function FdcpaReview({ violations, letter, context }: FdcpaReviewProps) {
     <div className="h-full overflow-y-scroll">
       {violations.length === 0 && <EmptyState />}
 
-      {violations.length > 1 && (
+      {violations.length >= 1 && (
         <div className="space-y-2">
           {violations.map((violation) => (
             <ViolationItem key={violation.fdcpaSection} violation={violation} />
