@@ -2,7 +2,11 @@ import { createTRPCRouter, protectedProcedure } from "..";
 import { upload } from "../lib/file";
 import { ocr } from "../lib/ocr";
 import { createSchema } from "../schema/project";
-import { extractAllegationsSchema } from "../schema/answer-lawsuit";
+import {
+  extractAllegationsSchema,
+  generateDraftSchema,
+  saveDraftSchema,
+} from "../schema/answer-lawsuit";
 import { extractAllegationsPrompt, generateDraftPrompt } from "../lib/prompts";
 import { generateObject, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
@@ -10,7 +14,6 @@ import { z } from "zod";
 import { db } from "@iam-pro-say/db";
 import { answerLawsuit } from "@iam-pro-say/db/schema/answer-lawsuit";
 import { eq, desc } from "drizzle-orm";
-import { generateDraftSchema } from "../schema/answer-lawsuit";
 
 export const answerLawsuitRouter = createTRPCRouter({
   create: protectedProcedure
@@ -126,6 +129,21 @@ export const answerLawsuitRouter = createTRPCRouter({
       return result.text;
     }),
 
+  saveDraft: protectedProcedure
+    .input(saveDraftSchema)
+    .mutation(async ({ input }) => {
+      const { id, draft } = input;
+
+      await db
+        .update(answerLawsuit)
+        .set({
+          draft_content: draft,
+        })
+        .where(eq(answerLawsuit.id, id));
+
+      return draft;
+    }),
+
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
@@ -152,4 +170,27 @@ export const answerLawsuitRouter = createTRPCRouter({
 
     return lawsuits;
   }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const { id } = input;
+
+      const [lawsuit] = await db
+        .select()
+        .from(answerLawsuit)
+        .where(eq(answerLawsuit.id, id));
+
+      if (!lawsuit) {
+        throw new Error("Lawsuit not found");
+      }
+
+      if (lawsuit.userId !== ctx.session.user.id) {
+        throw new Error("Unauthorized");
+      }
+
+      await db.delete(answerLawsuit).where(eq(answerLawsuit.id, id));
+
+      return { success: true };
+    }),
 });

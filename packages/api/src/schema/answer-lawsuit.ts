@@ -45,6 +45,11 @@ export const generateDraftSchema = z.object({
     .describe("The questionnaire of the answer lawsuit"),
 });
 
+export const saveDraftSchema = z.object({
+  id: z.string().describe("The id of the answer lawsuit"),
+  draft: z.string().describe("The updated draft content"),
+});
+
 export type Questionnaire = z.infer<
   typeof generateDraftSchema
 >["questionnaire"];

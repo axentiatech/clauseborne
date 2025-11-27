@@ -22,3 +22,26 @@ export const fdcpaList: {
     label: "Missing Mini-Miranda warning in calls/letters",
   },
 ];
+
+export const LegalTermNames: string[] = [
+  "Summary Judgment",
+  "Motion Dismiss",
+  "Discovery Request",
+  "Deposition Notice",
+  "Interrogatory Response",
+  "Expert Witness",
+  "Class Action",
+  "Settlement Agreement",
+  "Non Disclosure",
+  "Arbitration Clause",
+  "Statute Limitations",
+  "Burden Proof",
+  "Hearsay Exception",
+  "Privileged Communication",
+  "Contingency Fee",
+  "Pro Bono",
+  "Amicus Curiae",
+  "Stare Decisis",
+  "Res Ipsa",
+  "Prima Facie",
+];

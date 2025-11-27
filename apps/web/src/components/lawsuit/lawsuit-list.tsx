@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
 import Link from "next/link";
 import {
@@ -17,18 +17,59 @@ import {
   Clock,
   AlertCircle,
   ArrowRight,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewLawsuitButton } from "@/components/lawsuit/new-lawsuit-button";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "../ui/input";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 const LawsuitList = () => {
   const [search, setSearch] = useState<string>("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [lawsuitToDelete, setLawsuitToDelete] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const { data: lawsuits = [], isLoading } = useQuery(
     trpc.answerLawsuit.list.queryOptions()
   );
+
+  const { mutateAsync: deleteLawsuit, isPending: isDeleting } = useMutation(
+    trpc.answerLawsuit.delete.mutationOptions({
+      onSuccess: () => {
+        toast.success("Lawsuit deleted successfully");
+        setDeleteDialogOpen(false);
+        setLawsuitToDelete(null);
+        const listQueryKey = trpc.answerLawsuit.list.queryOptions().queryKey;
+        queryClient.invalidateQueries({ queryKey: listQueryKey });
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to delete lawsuit");
+      },
+    })
+  );
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLawsuitToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!lawsuitToDelete) return;
+    await deleteLawsuit({ id: lawsuitToDelete });
+  };
 
   const filteredLawsuits = lawsuits.filter((lawsuit) => {
     if (!search.trim()) return true;
@@ -129,54 +170,102 @@ const LawsuitList = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredLawsuits.map((lawsuit) => {
-            const status = getStatus(lawsuit);
-            const StatusIcon = status.icon;
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredLawsuits.map((lawsuit) => {
+              const status = getStatus(lawsuit);
+              const StatusIcon = status.icon;
 
-            return (
-              <Link
-                key={lawsuit.id}
-                href={`/dashboard/answer-lawsuit/${lawsuit.id}`}
-                className="block h-full"
-              >
-                <Card className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 group overflow-hidden gap-0">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors shrink-0">
-                        <FileText className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <CardTitle className="text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                          {lawsuit.document_name || "Untitled Document"}
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={cn(
-                              "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
-                              status.bgColor,
-                              status.color
-                            )}
-                          >
-                            <StatusIcon className="size-3" />
-                            <span>{status.label}</span>
+              return (
+                <div key={lawsuit.id} className="relative h-full group">
+                  <Link
+                    href={`/dashboard/answer-lawsuit/${lawsuit.id}`}
+                    className="block h-full"
+                  >
+                    <Card className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 overflow-hidden gap-0">
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start gap-4">
+                          <div className="p-3 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors shrink-0">
+                            <FileText className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-2">
+                            <CardTitle className="text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                              {lawsuit.document_name || "Untitled Document"}
+                            </CardTitle>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={cn(
+                                  "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
+                                  status.bgColor,
+                                  status.color
+                                )}
+                              >
+                                <StatusIcon className="size-3" />
+                                <span>{status.label}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </CardHeader>
+                      </CardHeader>
 
-                  <CardFooter className="pt-4 border-t">
-                    <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all w-full">
-                      <span className="font-medium">View Details</span>
-                      <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </CardFooter>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+                      <CardFooter className="pt-4 border-t">
+                        <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all w-full">
+                          <span className="font-medium">View Details</span>
+                          <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-3 right-3 h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                    onClick={(e) => handleDeleteClick(e, lawsuit.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Lawsuit</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this lawsuit? This action
+                  cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDeleteDialogOpen(false);
+                    setLawsuitToDelete(null);
+                  }}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Spinner className="mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </div>
   );

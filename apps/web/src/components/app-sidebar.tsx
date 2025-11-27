@@ -94,12 +94,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:p-1.5! border bg-gray-200 hover:bg-gray-300"
+              className="data-[slot=sidebar-menu-button]:p-1.5! border bg-primary hover:bg-primary/90 "
             >
-              <a href="#">
-                <IconInnerShadowTop className="size-5!" />
-                <span className="text-base  font-semibold">IamProSay</span>
-              </a>
+              <span className="text-white hover:text-white text-center font-semibold">
+                IAMPROSAY.
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

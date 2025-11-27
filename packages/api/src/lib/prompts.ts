@@ -237,6 +237,13 @@ IMPORTANT OUTPUT FORMAT:
 - Return the markdown content directly as a string
 - Use standard markdown syntax for formatting (headers, lists, bold, etc.)
 
+ - Conditional Logic 
+    - If "No" to owing debt → Include "Lack of standing" defense
+    - If last payment > [X years based on state] → Include "Statute of limitations" defense
+    - If FDCPA violations checked → Include "Unlawful collection practices" defense
+    - If "No" to proper service → Include "Improper service" defense
+
+
 COMPLAINT ALLEGATIONS:
 ${encodedAllegations}
 

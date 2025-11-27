@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-// serializeFile not needed here; upload happens before this page.
 import { trpc } from "@/utils/trpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -31,6 +30,8 @@ import {
   ArrowRight,
   CheckCircle2,
   Edit2,
+  Trash2,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
@@ -43,8 +44,16 @@ import type {
   OweDebt,
   ProperlyServed,
 } from "@/lib/types";
-import { fdcpaList } from "@/lib/constants";
+import { fdcpaList, LegalTermNames } from "@/lib/constants";
 import { US_STATES, INITIAL_QUESTIONNAIRE } from "@/lib/types";
+import { SummaryEditor } from "./editor";
+import {
+  PDFExporter,
+  pdfDefaultSchemaMappings,
+} from "@blocknote/xl-pdf-exporter";
+
+import * as ReactPDF from "@react-pdf/renderer";
+import { useCreateBlockNote } from "@blocknote/react";
 
 const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
   const [step, setStep] = useState<Step>(2);
@@ -57,6 +66,12 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
   const [draft, setDraft] = useState<string>("");
   const searchParams = useSearchParams();
   const id = initialId ?? searchParams.get("id");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState<string>("");
+  const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false);
+  const [newAllegationText, setNewAllegationText] = useState<string>("");
+  const [isEditingDraft, setIsEditingDraft] = useState<boolean>(false);
+  const editor = useCreateBlockNote();
 
   const { data: lawsuitData, isLoading: isLoadingLawsuit } = useQuery(
     trpc.answerLawsuit.get.queryOptions(
@@ -119,9 +134,6 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
       })
     );
 
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingText, setEditingText] = useState<string>("");
-
   const handleExtractAllegations = async () => {
     if (!id) {
       toast.warning("Missing document id");
@@ -137,6 +149,78 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
       return;
     }
     setStep(3);
+  };
+
+  const handleStartCreateAllegation = () => {
+    setIsCreatingNew(true);
+    setNewAllegationText("");
+  };
+
+  const handleCancelCreateAllegation = () => {
+    setIsCreatingNew(false);
+    setNewAllegationText("");
+  };
+
+  const handleSaveNewAllegation = async () => {
+    if (!id) {
+      toast.error("Missing document id");
+      return;
+    }
+    if (!newAllegationText.trim()) {
+      toast.warning("Please enter allegation text");
+      return;
+    }
+    const newId =
+      allegations.length > 0
+        ? Math.max(...allegations.map((a) => a.id)) + 1
+        : 1;
+    const newAllegation: Allegation = {
+      id: newId,
+      text: newAllegationText.trim(),
+    };
+    const updatedAllegations = [...allegations, newAllegation];
+    try {
+      await updateAllegationMut({
+        id: id as string,
+        allegations: updatedAllegations,
+      });
+      setAllegations(updatedAllegations);
+      setIsCreatingNew(false);
+      setNewAllegationText("");
+      toast.success("Allegation added successfully");
+    } catch (e) {}
+  };
+
+  const { mutateAsync: saveDraftMut, isPending: isSavingDraft } = useMutation(
+    trpc.answerLawsuit.saveDraft.mutationOptions({
+      onSuccess: () => {
+        toast.success("Draft saved");
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    })
+  );
+
+  const handleDeleteAllegation = async (allegationId: number) => {
+    if (!id) {
+      toast.error("Missing document id");
+      return;
+    }
+    const updatedAllegations = allegations.filter(
+      (alg) => alg.id !== allegationId
+    );
+    try {
+      await updateAllegationMut({
+        id: id as string,
+        allegations: updatedAllegations,
+      });
+      setAllegations(updatedAllegations);
+      if (editingId === allegationId) {
+        setEditingId(null);
+        setEditingText("");
+      }
+    } catch (e) {}
   };
 
   const handleNextFromQuestionnaire = async () => {
@@ -196,6 +280,28 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
         [key]: value,
       },
     }));
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!id) {
+      toast.error("Missing document id");
+      return;
+    }
+    if (editor) {
+      const exporter = new PDFExporter(editor.schema, pdfDefaultSchemaMappings);
+      const pdfDocument = await exporter.toReactPDFDocument(editor.document);
+      const blob = await ReactPDF.pdf(pdfDocument).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const randomIndex = Math.floor(Math.random() * LegalTermNames.length);
+      const randomTerm = LegalTermNames[randomIndex] || "answer-draft";
+      link.download = `${randomTerm.replace(/\s+/g, "-")}-draft.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   return (
@@ -285,11 +391,55 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs uppercase text-muted-foreground">
-                  Allegations
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase text-muted-foreground">
+                    Allegations
+                  </Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleStartCreateAllegation}
+                    disabled={isUpdatingAllegation || !id || isCreatingNew}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add custom
+                  </Button>
+                </div>
                 <div className="border rounded-md bg-muted/40 h-[55vh] overflow-auto p-4 space-y-3">
-                  {allegations.length === 0 ? (
+                  {isCreatingNew && (
+                    <div className="rounded-md border bg-background px-3 py-2 text-sm space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">New Allegation</p>
+                      </div>
+                      <textarea
+                        value={newAllegationText}
+                        onChange={(e) => setNewAllegationText(e.target.value)}
+                        className="w-full rounded-md border px-2 py-1 text-sm"
+                        rows={4}
+                        placeholder="Enter allegation text..."
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={handleSaveNewAllegation}
+                          disabled={
+                            isUpdatingAllegation || !newAllegationText.trim()
+                          }
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelCreateAllegation}
+                          disabled={isUpdatingAllegation}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {allegations.length === 0 && !isCreatingNew ? (
                     <p className="text-sm text-muted-foreground">
                       No allegations extracted yet. Click &quot;Extract
                       allegations&quot; to let the AI pull them out of the
@@ -305,16 +455,28 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
                           <p className="font-medium">Allegation {item.id}</p>
                           <div className="flex items-center gap-2">
                             {editingId === item.id ? null : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setEditingId(item.id);
-                                  setEditingText(item.text);
-                                }}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingId(item.id);
+                                    setEditingText(item.text);
+                                  }}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleDeleteAllegation(item.id)
+                                  }
+                                  disabled={isUpdatingAllegation}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -623,42 +785,78 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
       )}
 
       {step === 4 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Answer draft</CardTitle>
-            <CardDescription>
-              This is your AI-generated draft Answer based on the complaint and
-              your responses. Review it carefully before filing.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground space-y-2">
-              {isGeneratingDraft ? (
-                <div className="flex items-center gap-2">
-                  <Spinner />
-                  <span>Generating your Answer draft...</span>
-                </div>
-              ) : draft ? (
-                <Streamdown>{draft}</Streamdown>
-              ) : (
-                <p>No draft available yet. Go back and generate the draft.</p>
-              )}
-            </div>
+        <>
+          <div className="flex items-center justify-end gap-4">
+            {draft && !isGeneratingDraft && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditingDraft((prev) => !prev)}
+                  disabled={isSavingDraft}
+                >
+                  {isEditingDraft ? "Cancel editing" : "Edit draft"}
+                </Button>
 
-            <div className="flex items-center justify-between pt-4 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBack}
-                disabled={isGeneratingDraft}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-              <div className="flex flex-wrap gap-2"></div>
-            </div>
-          </CardContent>
-        </Card>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadPDF}
+                  disabled={isGeneratingDraft}
+                  className="bg-primary text-white hover:bg-rpimary hp"
+                >
+                  Download PDF
+                </Button>
+              </>
+            )}
+          </div>
+
+          <div className="rounded-md  bg-muted/40 p-6 text-sm text-muted-foreground space-y-2">
+            {isGeneratingDraft ? (
+              <div className="flex items-center gap-2">
+                <Spinner />
+                <span>Generating your Answer draft...</span>
+              </div>
+            ) : draft ? (
+              isEditingDraft ? (
+                <SummaryEditor
+                  initialMarkdown={draft}
+                  onCancel={() => setIsEditingDraft(false)}
+                  onSave={async (markdown) => {
+                    if (!id) {
+                      toast.error("Missing document id");
+                      return;
+                    }
+                    const nextDraft = markdown || "";
+                    await saveDraftMut({
+                      id: id as string,
+                      draft: nextDraft,
+                    });
+                    setDraft(nextDraft);
+                    setIsEditingDraft(false);
+                  }}
+                />
+              ) : (
+                <Streamdown className=" ">{draft}</Streamdown>
+              )
+            ) : (
+              <p>No draft available yet. Go back and generate the draft.</p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBack}
+              disabled={isGeneratingDraft}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <div className="flex flex-wrap gap-2"></div>
+          </div>
+        </>
       )}
     </div>
   );
