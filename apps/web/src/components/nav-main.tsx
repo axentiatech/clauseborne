@@ -41,7 +41,7 @@ export function NavMain({
               <Link href={("/dashboard" + item.url) as any}>
                 <SidebarMenuButton
                   tooltip={item.title}
-                  isActive={pathname === "/dashboard" + item.url}
+                  isActive={pathname.includes("/dashboard" + item.url)}
                 >
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
