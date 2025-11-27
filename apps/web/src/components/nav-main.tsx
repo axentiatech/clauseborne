@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 export function NavMain({
   items,
@@ -29,6 +30,7 @@ export function NavMain({
     title: string;
     url: string;
     icon?: Icon;
+    disabled: boolean;
   }[];
 }) {
   const pathname = usePathname();
@@ -38,10 +40,21 @@ export function NavMain({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <Link href={("/dashboard" + item.url) as any}>
+              <Link
+                href={("/dashboard" + item.url) as any}
+                onClick={(e) => {
+                  if (item.disabled) {
+                    e.preventDefault();
+                  }
+                }}
+                className={cn({
+                  "cursor-not-allowed": item.disabled,
+                })}
+              >
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname.includes("/dashboard" + item.url)}
+                  disabled={item.disabled}
                 >
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>

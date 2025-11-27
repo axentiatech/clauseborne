@@ -39,36 +39,43 @@ const data = {
     {
       title: "Answer Lawsuit",
       url: "/answer-lawsuit",
+      disabled: false,
       icon: IconGavel,
     },
     {
       title: "Collection Letters",
       url: "/collection-letters",
+      disabled: true,
       icon: IconShield,
     },
     {
       title: "Credit Report Scan",
       url: "/credit-report-scan",
+      disabled: true,
       icon: IconCreditCard,
     },
     {
       title: "Remove Inquiries",
       url: "/remove-inquiries",
+      disabled: true,
       icon: IconAlertTriangle,
     },
     {
       title: "Mortgage Issues",
       url: "/mortgage-issues",
+      disabled: true,
       icon: IconHome,
     },
     {
       title: "Repossession",
       url: "/repossession",
+      disabled: true,
       icon: IconCar,
     },
     {
       title: "FDCPA Violation Detection",
       url: "/fdcpa-violation",
+      disabled: false,
       icon: IconFileText,
     },
   ],
@@ -76,6 +83,7 @@ const data = {
     {
       title: "Settings",
       url: "#",
+      disabled: false,
       icon: IconSettings,
     },
   ],
@@ -99,7 +107,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain
+          items={data.navMain.sort((a, b) =>
+            a.disabled ? 1 : b.disabled ? -1 : 0
+          )}
+        />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
