@@ -11,5 +11,6 @@ export default async function Home() {
   // if (!session?.user) {
   //   redirect("/login");
   // }
-  return <div className="container mx-auto p-16">{/* <FileUpload /> */}</div>;
+
+  redirect("/dashboard/answer-lawsuit");
 }
