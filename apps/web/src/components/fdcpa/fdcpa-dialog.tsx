@@ -28,6 +28,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
+import { useRouter } from "next/navigation";
 
 type FdcpaDialogProps = React.ComponentProps<typeof DialogPrimitive.Root> & {
   title?: string;
@@ -39,6 +40,7 @@ export function FdcpaDialog(props: FdcpaDialogProps) {
   const { mutateAsync, isPending } = useMutation(
     trpc.fdcpa.create.mutationOptions({})
   );
+  const router = useRouter();
 
   const { mutateAsync: extractViolations, isPending: isExtracting } =
     useMutation(trpc.fdcpa.extractViolations.mutationOptions({}));
@@ -55,6 +57,8 @@ export function FdcpaDialog(props: FdcpaDialogProps) {
       setStep("1");
       await extractViolations({ context: result.context, id: result.id });
       props.onOpenChange?.(false);
+      toast.success("Violations extracted successfully");
+      router.push(`/dashboard/fdcpa-violation/${result.id}`);
     } catch (error) {
       toast.error("Failed to process file");
     }
