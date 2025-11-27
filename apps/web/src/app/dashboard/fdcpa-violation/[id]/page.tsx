@@ -1,4 +1,5 @@
 import { FdcpaReview } from "@/components/fdcpa/fdcpa-review";
+import { NavigateBack } from "@/components/navigate-back";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@iam-pro-say/db";
 import { fdcpaViolations } from "@iam-pro-say/db/schema/fdcpa";
@@ -22,7 +23,8 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <div className="container mx-auto p-6 space-y-2">
-      <div className="flex flex-col gap-4">
+      <div className="flex gap-2 items-center">
+        <NavigateBack />
         <h1 className="text-lg font-bold">{fdcpaViolation?.document_name}</h1>
       </div>
       <div className="grid grid-cols-2 h-[80vh] gap-x-2 overflow-hidden">
