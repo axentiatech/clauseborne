@@ -37,11 +37,6 @@ const data = {
   },
   navMain: [
     {
-      title: "Dashboard",
-      url: "/",
-      icon: IconDashboard,
-    },
-    {
       title: "Answer Lawsuit",
       url: "/answer-lawsuit",
       icon: IconGavel,
