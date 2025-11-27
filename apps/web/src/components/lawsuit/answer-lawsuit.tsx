@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,7 +46,7 @@ import type {
 } from "@/lib/types";
 import { fdcpaList, LegalTermNames } from "@/lib/constants";
 import { US_STATES, INITIAL_QUESTIONNAIRE } from "@/lib/types";
-import { SummaryEditor } from "./editor";
+import { SummaryEditor, type SummaryEditorRef } from "./editor";
 import {
   PDFExporter,
   pdfDefaultSchemaMappings,
@@ -72,6 +72,7 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
   const [newAllegationText, setNewAllegationText] = useState<string>("");
   const [isEditingDraft, setIsEditingDraft] = useState<boolean>(false);
   const editor = useCreateBlockNote();
+  const editorRef = useRef<SummaryEditorRef>(null);
 
   const { data: lawsuitData, isLoading: isLoadingLawsuit } = useQuery(
     trpc.answerLawsuit.get.queryOptions(
@@ -288,8 +289,16 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
       return;
     }
     if (editor) {
+      const blocks = await editor.tryParseMarkdownToBlocks(draft);
+      if (!blocks || blocks.length === 0) {
+        return;
+      }
+
+      editor.replaceBlocks(editor.document, blocks);
+
       const exporter = new PDFExporter(editor.schema, pdfDefaultSchemaMappings);
       const pdfDocument = await exporter.toReactPDFDocument(editor.document);
+
       const blob = await ReactPDF.pdf(pdfDocument).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -789,24 +798,56 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
           <div className="flex items-center justify-end gap-4">
             {draft && !isGeneratingDraft && (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditingDraft((prev) => !prev)}
-                  disabled={isSavingDraft}
-                >
-                  {isEditingDraft ? "Cancel editing" : "Edit draft"}
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownloadPDF}
-                  disabled={isGeneratingDraft}
-                  className="bg-primary text-white hover:bg-rpimary hp"
-                >
-                  Download PDF
-                </Button>
+                {isEditingDraft ? (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        if (editorRef.current) {
+                          await editorRef.current.save();
+                        }
+                      }}
+                      disabled={isSavingDraft || editorRef.current?.isSaving}
+                    >
+                      {isSavingDraft || editorRef.current?.isSaving ? (
+                        <>
+                          <Spinner />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save draft"
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingDraft(false)}
+                      disabled={isSavingDraft || editorRef.current?.isSaving}
+                    >
+                      Cancel editing
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingDraft((prev) => !prev)}
+                      disabled={isSavingDraft}
+                    >
+                      Edit draft
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownloadPDF}
+                      disabled={isGeneratingDraft}
+                      className="bg-primary text-white hover:bg-primary"
+                    >
+                      Download PDF
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -820,6 +861,7 @@ const AnswerLawsuit = ({ initialId }: { initialId?: string }) => {
             ) : draft ? (
               isEditingDraft ? (
                 <SummaryEditor
+                  ref={editorRef}
                   initialMarkdown={draft}
                   onCancel={() => setIsEditingDraft(false)}
                   onSave={async (markdown) => {
